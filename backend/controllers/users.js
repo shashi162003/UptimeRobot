@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const bcrypt = require('bcrypt');
+const { sendOtp } = require('../utils/otpService');
 
 exports.getUserProfile = async (req, res) => {
     try {
@@ -61,49 +62,64 @@ exports.updateUserProfile = async (req, res) => {
     }
 }
 
-exports.changePassword = async (req, res) => {
-    const {currentPassword, newPassword, confirmNewPassword} = req.body;
+exports.requestPasswordChange = async (req, res) => {
     try {
-        const id = req.user._id;
-        const user = await User.findById(id);
+        const user = await User.findById(req.user._id);
         if (!user) {
             return res.status(404).json({
                 success: false,
                 message: "User not found"
             });
         }
-        const isMatch = await bcrypt.compare(currentPassword, user.password);
-        if (!isMatch) {
-            return res.status(400).json({
-                success: false,
-                message: "Current password is incorrect"
-            });
-        }
-        if (newPassword !== confirmNewPassword) {
-            return res.status(400).json({
-                success: false,
-                message: "New passwords do not match"
-            });
-        }
-        const genSalt = await bcrypt.genSalt(12);
-        const hashedPassword = await bcrypt.hash(newPassword, genSalt);
-        user.password = hashedPassword;
-        await user.save();
-        console.log(`Password changed for user: ${user.username}`.blue);
+        console.log(`Requesting password change for user: ${user.username}`.blue);
         console.log(`${user}`.blue);
-        return res.status(200).json({
+
+        await sendOtp(user);
+
+        res.status(200).json({ 
             success: true,
-            message: "Password changed successfully"
+            message: `OTP sent to ${user.email}.`
         });
-    }
-    catch (error) {
-        console.error(`Error changing password: ${error.message}`.red);
-        return res.status(500).json({
+    } catch (error) {
+        res.status(500).json({ 
             success: false,
             message: "Internal server error"
         });
     }
-}
+};
+
+exports.verifyPasswordChange = async (req, res) => {
+    const { otp, newPassword } = req.body;
+    try {
+        const user = await User.findOne({ _id: req.user._id, otp, otpExpires: { $gt: Date.now() } });
+        if (!user) {
+            return res.status(400).json({ 
+                success: false,
+                message: "Invalid OTP or OTP has expired." 
+            });
+        }
+
+        user.password = await bcrypt.hash(newPassword, 12);
+        user.otp = undefined;
+        user.otpExpires = undefined;
+
+        console.log(`Password changed for user: ${user.username}`.blue);
+        console.log(`${user}`.blue);
+
+        await user.save();
+
+        res.status(200).json({ 
+            success: true, 
+            message: "Password changed successfully." 
+        });
+
+    } catch (error) {
+        res.status(500).json({ 
+            success: false,
+            message: "Internal server error"
+        });
+    }
+};
 
 exports.deleteUserAccount = async (req, res) => {
     try {
