@@ -1,0 +1,9 @@
+{
+    "name": "uptimerobot-root",
+    "version": "1.0.0",
+    "description": "Root package.json for Railway deployment. Uses backend dependencies.",
+    "private": true,
+    "scripts": {
+        "start": "node backend/worker.js"
+    }
+}
