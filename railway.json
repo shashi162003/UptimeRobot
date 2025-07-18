@@ -3,24 +3,11 @@
     "build": {
         "builder": "NIXPACKS",
         "nixpacksConfig": {
-            "phases": {
-                "setup": {
-                    "cmds": [
-                        "npm install"
-                    ]
-                }
-            },
-            "start": {
-                "cmd": "node worker.js"
-            }
-        },
-        "watchPatterns": [
-            "/backend/**"
-        ]
+            "rootDir": "./backend"
+        }
     },
     "deploy": {
         "startCommand": "node worker.js",
-        "healthcheckPath": null,
-        "healthcheckTimeout": 100
+        "healthcheckPath": null
     }
 }
