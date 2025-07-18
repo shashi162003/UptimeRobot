@@ -6,7 +6,7 @@
             "providers": [
                 "node"
             ],
-            "buildCmd": "npm install",
+            "buildCmd": "cd backend && npm install",
             "startCmd": "node worker.js",
             "rootDir": "/backend"
         }
