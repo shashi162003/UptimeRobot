@@ -8,6 +8,7 @@ const authRouter = require('./routes/authRoutes');
 const monitorRouter = require('./routes/monitorRoutes');
 const userRouter = require('./routes/userRoutes');
 const reportRouter = require('./routes/reportRouter');
+const notificationRouter = require('./routes/notificationRouter');
 
 require('dotenv').config();
 
@@ -23,6 +24,7 @@ app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/monitors', monitorRouter);
 app.use('/api/v1/users', userRouter);
 app.use('/api/v1/reports', reportRouter);
+app.use('/api/v1/notifications', notificationRouter);
 
 app.get('/', (req, res) => {
     res.status(200).json({
