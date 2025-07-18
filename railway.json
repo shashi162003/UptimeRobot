@@ -1,7 +1,17 @@
 {
     "$schema": "https://railway.app/railway.schema.json",
+    "build": {
+        "builder": "NIXPACKS",
+        "nixpacksConfig": {
+            "providers": [
+                "node"
+            ],
+            "buildCmd": "npm install",
+            "startCmd": "node worker.js",
+            "rootDir": "/backend"
+        }
+    },
     "deploy": {
-        "startCommand": "node worker.js",
-        "healthcheckPath": null
+        "startCommand": "node worker.js"
     }
 }
