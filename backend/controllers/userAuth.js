@@ -1,101 +1,163 @@
-const brcypt = require('bcrypt');
+const bcrypt = require('bcrypt');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const {sendOtp} = require('../utils/otpService');
 
-exports.register = async(req, res) => {
-    const {username, email, password, confirmPassword} = req.body;
-    try{
-        if(!username || !email || !password || !confirmPassword){
-            return res.status(400).json({
-                success: false,
-                message: "Please provide all required fields"
-            })
+exports.register = async (req, res) => {
+    const { username, email, password } = req.body;
+    try {
+        if (!username || !email || !password) {
+            return res.status(400).json({ message: "Please provide all fields" });
         }
-        if(password !== confirmPassword){
-            return res.status(400).json({
-                success: false,
-                message: "Passwords do not match"
-            })
-        }
-        const existingUser = await User.findOne({
-            $or: [{username}, {email}]
-        })
-        if(existingUser){
-            return res.status(400).json({
-                success: false,
-                message: "Username or email already exists"
-            })
-        }
-        const genSalt = await brcypt.genSalt(12);
-        const hashedPassword = await brcypt.hash(password, genSalt);
-        const user = await User.create({
-            username,
-            email,
-            password: hashedPassword
-        })
-        const token = jwt.sign({id: user._id}, process.env.JWT_SECRET, {
-            expiresIn: '1d'
-        })
-        console.log(`User registered: ${user.username}`.green);
-        res.status(201).json({
-            success: true,
-            message: "User registered successfully",
-            token
-        })
-    }
-    catch(error){
-        console.error(`Error registering user: ${error.message}`.red);
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        })
-    }
-}
 
-exports.login = async (req, res) => {
-    const {email, password} = req.body;
-    try{
-        if(!email || !password){
+        let existingUser = await User.findOne({ $or: [{ username }, { email }] });
+
+        if (existingUser && existingUser.isVerified) {
             return res.status(400).json({
-                success: false,
-                message: "Please provide all required fields"
-            })
+                success: false, 
+                message: "Username or email already exists" 
+            });
         }
-        const user = await User.findOne({email});
-        if(!user){
-            return res.status(400).json({
-                success: false,
-                message: "Invalid email or password"
-            })
+
+        if (existingUser && !existingUser.isVerified) {
+            await User.deleteOne({ _id: existingUser._id });
         }
-        const isMatch = await brcypt.compare(password, user.password);
-        if(!isMatch){
-            return res.status(400).json({
-                success: false,
-                message: "Invalid email or password"
-            })
-        }
-        const token = jwt.sign({id: user._id}, process.env.JWT_SECRET, {
-            expiresIn: '1d'
-        })
-        res.cookie('token', token, {
-            maxAge: 24 * 60 * 60 * 1000,
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict'
-        });
-        console.log(`User logged in: ${user.username}`.green);
+
+        const genSalt = await bcrypt.genSalt(12);
+        const hashedPassword = await bcrypt.hash(password, genSalt);
+        const user = await User.create({ username, email, password: hashedPassword });
+
+        console.log(`User registered: ${user.username}`.blue);
+        console.log(`${user}`.blue);
+
+        await sendOtp(user);
+
         res.status(200).json({
             success: true,
-            message: "User logged in successfully",
-            token
-        })
-    }
-    catch(error){
-        console.error(`Error logging in user: ${error.message}`.red);
-        res.status(500).json({
+            message: `OTP sent to ${email}. Please verify to complete registration.`
+        });
+    } catch (error) {
+        console.error(`Error registering user: ${error.message}`.red);
+        res.status(500).json({ 
             success: false,
-            message: "Internal server error"
-        })
+            message: "Internal server error",
+            error: error.message
+        });
     }
-}
+};
+
+exports.verifyRegistrationOtp = async (req, res) => {
+    const { email, otp } = req.body;
+    try {
+        const user = await User.findOne({ email, otp, otpExpires: { $gt: Date.now() } });
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid OTP or OTP has expired."
+            });
+        }
+
+        user.isVerified = true;
+        user.otp = undefined;
+        user.otpExpires = undefined;
+
+        await user.save();
+
+        console.log(`User verified: ${user.username}`.blue);
+        console.log(`${user}`.blue);
+
+        res.status(201).json({ 
+            success: true, 
+            message: "User registered successfully." 
+        });
+
+    } catch (error) {
+        console.error(`Error verifying registration OTP: ${error.message}`.red);
+        res.status(500).json({ 
+            success: false,
+            message: "Internal server error",
+            error: error.message
+        });
+    }
+};
+
+exports.login = async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        const user = await User.findOne({ email });
+        if (!user || !user.isVerified) {
+            return res.status(401).json({ 
+                success: false,
+                message: "Invalid credentials or user not verified." 
+            });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ 
+                success: false,
+                message: "Invalid credentials." 
+            });
+        }
+
+        await sendOtp(user);
+
+        console.log(`User logged in: ${user.username}`.blue);
+        console.log(`${user}`.blue);
+
+        res.status(200).json({
+            success: true,
+            message: `OTP sent to ${email}. Please verify to log in.`
+        });
+
+    } catch (error) {
+        console.error(`Error logging in user: ${error.message}`.red);
+        res.status(500).json({ 
+            success: false,
+            message: "Internal server error",
+            error: error.message
+        });
+    }
+};
+
+exports.verifyLoginOtp = async (req, res) => {
+    const { email, otp } = req.body;
+    try {
+        const user = await User.findOne({ email, otp, otpExpires: { $gt: Date.now() } });
+
+        if (!user) {
+            return res.status(400).json({ 
+                success: false,
+                message: "Invalid OTP or OTP has expired." 
+            });
+        }
+
+        user.otp = undefined;
+        user.otpExpires = undefined;
+        await user.save();
+
+        console.log(`User logged in: ${user.username}`.blue);
+        console.log(`${user}`.blue);
+
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+
+        res.cookie('token', token, { 
+            httpOnly: true, 
+            secure: process.env.NODE_ENV === 'production', 
+            sameSite: 'strict' 
+        });
+
+        res.status(200).json({ 
+            success: true, 
+            message: "Logged in successfully.", 
+            token 
+        });
+
+    } catch (error) {
+        res.status(500).json({ 
+            success: false,
+            message: "Internal server error" 
+        });
+    }
+};
