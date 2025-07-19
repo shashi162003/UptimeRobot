@@ -16,9 +16,21 @@ A full-stack uptime monitoring application inspired by [Uptime Robot](https://up
 
 <!-- Add your demo video and screenshots here -->
 
-- Demo Video: _Coming Soon_
+- Demo Video:
+
+
+
+https://github.com/user-attachments/assets/1cfa043b-9bf8-48d0-b9f9-e837bac3f6b9
+
+
+
 - Demo Screenshots:
-  - _Coming Soon_
+
+<img width="1919" height="908" alt="image" src="https://github.com/user-attachments/assets/b1fb3321-af74-41e5-b1ff-35b7c839a922" />
+
+<img width="1919" height="913" alt="image" src="https://github.com/user-attachments/assets/a5a3400b-3ce7-4a47-88d5-ac836c5658d1" />
+
+<img width="1046" height="738" alt="image" src="https://github.com/user-attachments/assets/c2134f12-d2f6-47ec-9f0b-2fbe574d499a" />
 
 ---
 
