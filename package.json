@@ -4,6 +4,7 @@
     "description": "Root package.json for Railway deployment. Uses backend dependencies.",
     "private": true,
     "scripts": {
-        "start": "node backend/worker.js"
+        "start": "node backend/worker.js",
+        "postinstall": "npm install --prefix backend"
     }
 }
